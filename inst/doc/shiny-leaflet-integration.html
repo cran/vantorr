@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Interactive Leaflet Maps and Shiny Apps with vantorr</title>
+<style type="text/css">
+/**
+ * Prism.s theme ported from highlight.js's xcode style
+ */
+pre code {
+  padding: 1em;
+}
+.token.comment {
+  color: #007400;
+}
+.token.punctuation {
+  color: #999;
+}
+.token.tag,
+.token.selector {
+  color: #aa0d91;
+}
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol {
+  color: #1c00cf;
+}
+.token.property,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin {
+  color: #c41a16;
+}
+.token.inserted {
+  background-color: #ccffd8;
+}
+.token.deleted {
+  background-color: #ffebe9;
+}
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #9a6e3a;
+}
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #836c28;
+}
+.token.function,
+.token.class-name {
+  color: #DD4A68;
+}
+.token.regex,
+.token.important,
+.token.variable {
+  color: #5c2699;
+}
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+</style>
+<style type="text/css">
+body {
+  font-family: sans-serif;
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+body, .footnotes, code { font-size: .9em; }
+li li { font-size: .95em; }
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+pre, img { max-width: 100%; }
+pre, pre:hover {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+pre code {
+  display: block;
+  overflow-x: auto;
+}
+code { font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace; }
+:not(pre) > code, code[class] { background-color: #F8F8F8; }
+code.language-undefined, pre > code:not([class]) {
+  background-color: inherit;
+  border: 1px solid #eee;
+}
+table {
+  margin: auto;
+  border-top: 1px solid #666;
+}
+table thead th { border-bottom: 1px solid #ddd; }
+th, td { padding: 5px; }
+thead, tfoot, tr:nth-child(even) { background: #eee; }
+blockquote {
+  color: #666;
+  margin: 0;
+  padding-left: 1em;
+  border-left: 0.5em solid #eee;
+}
+hr, .footnotes::before { border: 1px dashed #ddd; }
+.frontmatter { text-align: center; }
+#TOC .numbered li { list-style: none; }
+#TOC .numbered { padding-left: 0; }
+#TOC .numbered ul { padding-left: 1em; }
+table, .body h2 { border-bottom: 1px solid #666; }
+.body .appendix, .appendix ~ h2 { border-bottom-style: dashed; }
+.footnote-ref a::before { content: "["; }
+.footnote-ref a::after { content: "]"; }
+.footnotes::before {
+  content: "";
+  display: block;
+  max-width: 20em;
+}
+
+@media print {
+  body {
+    font-size: 12pt;
+    max-width: 100%;
+  }
+  tr, img { page-break-inside: avoid; }
+}
+@media only screen and (min-width: 992px) {
+  pre { white-space: pre; }
+}
+</style>
+</head>
+<body>
+<div class="include-before">
+</div>
+<div class="frontmatter">
+<div class="title"><h1>Interactive Leaflet Maps and Shiny Apps with vantorr</h1></div>
+<div class="author"><h2></h2></div>
+<div class="date"><h3></h3></div>
+</div>
+<div class="body">
+<h2 id="overview">Overview</h2>
+<p>The <code>vantorr</code> package makes it straightforward to stream high-resolution Vantor / Maxar satellite imagery into interactive <code>leaflet</code> web maps and <code>shiny</code> applications, while connecting map interactions directly to R spatial workflows (<code>sf</code>, <code>terra</code>, and <code>stars</code>).</p>
+<p>This vignette covers:</p>
+<ol>
+<li><strong>Authentication for Browser Tile Streaming</strong>: Setting up a Vantor API key (<code>VANTOR_API_KEY</code>).</li>
+<li><strong>Interactive <code>leaflet</code> Maps</strong>: Adding Vantor Vivid mosaics (<code>WMTS</code> / <code>WMS</code>), seamline overlays (<code>WMS</code> and interactive <code>WFS</code> polygons), and archive strips.</li>
+<li><strong>Building a Custom Shiny App</strong>: Writing a custom Shiny app with a <code>leaflet</code> map that inspects imagery vintage and downloads GeoTIFFs for the current viewport.</li>
+<li><strong>Using Drop-in <code>vantorr</code> Shiny Modules</strong>: Embedding <code>vantor_auth_ui()</code> and <code>vantor_explorer_ui()</code> into any Shiny dashboard in just a few lines of code.</li>
+</ol>
+<hr />
+<h2 id="1-authentication-for-browser-tile-streaming">1. Authentication for Browser Tile Streaming</h2>
+<p>Vantor Hub endpoints support two authentication mechanisms with distinct scopes:</p>
+<ul>
+<li><strong>OGC &amp; Non-Administrative APIs</strong> (<code>get_maxar_wms_basemap()</code>, <code>get_maxar_wms_tiles()</code>, <code>vantor_get_seamlines()</code>): Work with <strong>either</strong> an <strong>API Key</strong> (<code>maxar-api-key</code>) or an <strong>OAuth2 Bearer Token</strong> (<code>Authorization: Bearer &lt;token&gt;</code>).</li>
+<li><strong>Account Services / Admin APIs</strong> (<code>vantor_get_usage()</code>): Require an <strong>OAuth2 Bearer Token</strong> (<code>vantor_auth(username = &quot;...&quot;, password = &quot;...&quot;)</code>), as Vantor’s Admin APIs do not accept API keys.</li>
+<li><strong>Browser-Based <code>leaflet</code> Tile Layers</strong> (<code>add_vantor_basemap()</code>, <code>add_vantor_seamlines(mode = &quot;wms&quot;)</code>, <code>add_vantor_imagery()</code>): Require an <strong>API Key</strong> (<code>maxar_api_key</code> URL query parameter), because web browsers rendering <code>&lt;img&gt;</code> tile requests cannot attach custom HTTP <code>Authorization: Bearer</code> headers.</li>
+</ul>
+<p>To use <code>leaflet</code> tile layers seamlessly, configure your API key in <code>.Renviron</code> (you can also set <code>VANTOR_USERNAME</code> and <code>VANTOR_PASSWORD</code> alongside it if you use <code>vantor_get_usage()</code>):</p>
+<pre><code class="language-r"># In your ~/.Renviron file:
+VANTOR_API_KEY=&quot;your_vantor_api_key&quot;
+</code></pre>
+<p>Or register it at the start of your R session or Shiny app:</p>
+<pre><code class="language-r">library(vantorr)
+
+# Set a placeholder API key for demonstration
+vantor_auth(api_key = &quot;example_api_key&quot;, verbose = FALSE)
+</code></pre>
+<hr />
+<h2 id="2-interactive-leaflet-maps">2. Interactive <code>leaflet</code> Maps</h2>
+<h3 id="generating-ogc-wmts-tile-url-templates">Generating OGC WMTS Tile URL Templates</h3>
+<p>If you want the raw OGC Web Map Tile Service (<code>WMTS</code>) URL template (<code>EPSG:3857</code>) for use in <code>leaflet</code>, <code>mapgl</code>, or <code>tmap</code>, use <code>vantor_wmts_url()</code>:</p>
+<pre><code class="language-r">wmts_template &lt;- vantor_wmts_url(product = &quot;VIVID_STANDARD_30&quot;)
+wmts_template
+#&gt; [1] &quot;https://api.maxar.com/basemaps/v1/ogc/gwc/service/wmts?service=WMTS&amp;request=GetTile&amp;version=1.0.0&amp;layer=Maxar:Imagery&amp;tileMatrixSet=EPSG:3857&amp;tileMatrix=EPSG:3857:{z}&amp;tileCol={x}&amp;tileRow={y}&amp;format=image%2Fjpeg&amp;cql_filter=productName%3D%27VIVID_STANDARD_30%27&amp;maxar_api_key=example_api_key&quot;
+</code></pre>
+<h3 id="adding-vantor-vivid-basemaps-and-seamlines">Adding Vantor Vivid Basemaps and Seamlines</h3>
+<p><code>add_vantor_basemap()</code> (or its camelCase alias <code>addVantorBasemap()</code>) adds Vantor Vivid Mosaic imagery (<code>&quot;VIVID_STANDARD_30&quot;</code> at 30 cm or <code>&quot;VIVID_ADVANCED_15&quot;</code> at 15 cm) to a <code>leaflet</code> or <code>leafletProxy</code> widget. By default it uses pre-cached <code>WMTS</code> tiles (<code>service = &quot;WMTS&quot;</code>) for fast panning and zooming, and can optionally overlay seamlines (<code>show_seamlines = TRUE</code>):</p>
+<pre><code class="language-r">library(leaflet)
+
+map_widget &lt;- leaflet() |&gt;
+  setView(lng = -104.995, lat = 39.740, zoom = 15) |&gt;
+  add_vantor_basemap(
+    product = &quot;VIVID_STANDARD_30&quot;,
+    service = &quot;WMTS&quot;,
+    show_seamlines = TRUE,
+    group = &quot;Vantor Vivid 30cm&quot;,
+    verbose = FALSE
+  ) |&gt;
+  addLayersControl(
+    baseGroups = &quot;Vantor Vivid 30cm&quot;,
+    overlayGroups = &quot;Vantor Seamlines&quot;
+  )
+</code></pre>
+<h3 id="inspecting-seamline-acquisition-dates-via-wfs-mode-quot-wfs-quot">Inspecting Seamline Acquisition Dates via WFS (<code>mode = &quot;wfs&quot;</code>)</h3>
+<p>For survey fieldwork and machine learning labeling, knowing the exact <strong>acquisition date</strong> (<code>acq_time</code>), <strong>ground sample distance</strong> (<code>gsd</code>), and <strong>sensor</strong> (<code>sensor</code>) of each mosaic strip is critical.</p>
+<p><code>add_vantor_seamlines()</code> supports two modes:</p>
+<ul>
+<li><code>mode = &quot;wms&quot;</code> (default): Renders a lightweight transparent raster cutline overlay across all zoom levels.</li>
+<li><code>mode = &quot;wfs&quot;</code>: Queries the Vantor OGC WFS endpoint via <code>vantor_get_seamlines()</code> for a given <code>bbox</code> and adds interactive <code>sf</code> polygons with clickable HTML metadata popups:</li>
+</ul>
+<pre><code class="language-r">aoi &lt;- sf::st_bbox(
+  c(xmin = -105.01, ymin = 39.73, xmax = -104.98, ymax = 39.75),
+  crs = sf::st_crs(4326)
+)
+
+leaflet() |&gt;
+  fitBounds(-105.01, 39.73, -104.98, 39.75) |&gt;
+  add_vantor_basemap(product = &quot;VIVID_STANDARD_30&quot;) |&gt;
+  add_vantor_seamlines(
+    product = &quot;VIVID_STANDARD_30&quot;,
+    mode = &quot;wfs&quot;,
+    bbox = aoi
+  )
+</code></pre>
+<h3 id="streaming-specific-archive-strips-add-vantor-imagery">Streaming Specific Archive Strips (<code>add_vantor_imagery()</code>)</h3>
+<p>To stream an individual archive strip by its catalog <code>feature_id</code> or a custom CQL filter (e.g., filtering by <code>acquisitionDate</code> and <code>cloudCover</code>), use <code>add_vantor_imagery()</code>:</p>
+<pre><code class="language-r">archive_map &lt;- leaflet() |&gt;
+  setView(lng = -104.995, lat = 39.740, zoom = 15) |&gt;
+  add_vantor_imagery(
+    feature_id = &quot;10300100EBEDF600&quot;,
+    group = &quot;Archive Strip&quot;,
+    verbose = FALSE
+  )
+</code></pre>
+<hr />
+<h2 id="3-building-a-custom-shiny-application-with-a-leaflet-map">3. Building a Custom Shiny Application with a Leaflet Map</h2>
+<p>Below is a complete, minimal Shiny application built from scratch using <code>leaflet</code> and <code>vantorr</code>. It allows the user to:</p>
+<ol>
+<li>Switch between <strong>Vivid Standard (30 cm)</strong> and <strong>Vivid Advanced (15 cm)</strong> basemaps.</li>
+<li>Toggle the <strong>WMS Seamlines</strong> cutline overlay.</li>
+<li>Click <strong>Fetch WFS Seamlines</strong> to load interactive <code>sf</code> seamline polygons for the current map viewport (<code>input$map_bounds</code>) and display their metadata table.</li>
+<li>Click <strong>Download Viewport GeoTIFF</strong> to export the visible map extent via <code>get_maxar_wms_basemap()</code>.</li>
+</ol>
+<pre><code class="language-r">library(shiny)
+library(leaflet)
+library(sf)
+library(vantorr)
+
+# Ensure VANTOR_API_KEY is set in .Renviron or call vantor_auth(api_key = &quot;...&quot;)
+
+ui &lt;- fluidPage(
+  titlePanel(&quot;Custom Vantor Leaflet + Shiny App&quot;),
+  sidebarLayout(
+    sidebarPanel(
+      width = 4,
+      selectInput(
+        &quot;product&quot;,
+        &quot;Vivid Product:&quot;,
+        choices = c(
+          &quot;Vivid Standard 30 cm&quot; = &quot;VIVID_STANDARD_30&quot;,
+          &quot;Vivid Advanced 15 cm&quot; = &quot;VIVID_ADVANCED_15&quot;
+        )
+      ),
+      checkboxInput(&quot;seamlines&quot;, &quot;Show WMS Seamlines&quot;, value = FALSE),
+      actionButton(
+        &quot;load_wfs&quot;,
+        &quot;Fetch WFS Seamlines in View&quot;,
+        class = &quot;btn-info btn-block&quot;
+      ),
+      hr(),
+      numericInput(&quot;res&quot;, &quot;Export Resolution (m):&quot;, value = 0.5, min = 0.15, max = 5, step = 0.15),
+      downloadButton(&quot;download_tif&quot;, &quot;Download Viewport GeoTIFF&quot;, class = &quot;btn-success btn-block&quot;),
+      hr(),
+      h5(&quot;Seamline Vintage Summary&quot;),
+      tableOutput(&quot;seamline_table&quot;)
+    ),
+    mainPanel(
+      width = 8,
+      leafletOutput(&quot;map&quot;, height = &quot;600px&quot;)
+    )
+  )
+)
+
+server &lt;- function(input, output, session) {
+  seamlines_rv &lt;- reactiveVal(NULL)
+
+  # Helper reactive: convert Leaflet map bounds to an sf::bbox (EPSG:4326)
+  viewport_bbox &lt;- reactive({
+    req(input$map_bounds)
+    b &lt;- input$map_bounds
+    sf::st_bbox(
+      c(xmin = b$west, ymin = b$south, xmax = b$east, ymax = b$north),
+      crs = sf::st_crs(4326)
+    )
+  })
+
+  # 1. Initialize the Leaflet map
+  output$map &lt;- renderLeaflet({
+    leaflet() |&gt;
+      addTiles(group = &quot;OpenStreetMap&quot;) |&gt;
+      setView(lng = -104.995, lat = 39.740, zoom = 15) |&gt;
+      add_vantor_basemap(
+        product = &quot;VIVID_STANDARD_30&quot;,
+        group = &quot;Vantor Vivid&quot;,
+        verbose = FALSE
+      ) |&gt;
+      addLayersControl(
+        baseGroups = c(&quot;Vantor Vivid&quot;, &quot;OpenStreetMap&quot;),
+        overlayGroups = c(&quot;Vantor Seamlines&quot;, &quot;WFS Polygons&quot;),
+        options = layersControlOptions(collapsed = FALSE)
+      )
+  })
+
+  # 2. Update basemap and WMS seamlines via leafletProxy()
+  observe({
+    leafletProxy(&quot;map&quot;, session = session) |&gt;
+      clearGroup(&quot;Vantor Vivid&quot;) |&gt;
+      clearGroup(&quot;Vantor Seamlines&quot;) |&gt;
+      add_vantor_basemap(
+        product = input$product,
+        group = &quot;Vantor Vivid&quot;,
+        show_seamlines = input$seamlines,
+        verbose = FALSE
+      )
+  })
+
+  # 3. Query WFS vector seamlines for the current viewport on button click
+  observeEvent(input$load_wfs, {
+    bb &lt;- viewport_bbox()
+    withProgress(message = &quot;Fetching WFS seamlines...&quot;, value = 0.5, {
+      sl &lt;- vantor_get_seamlines(bbox = bb, product = input$product)
+      seamlines_rv(sl)
+    })
+
+    if (!is.null(seamlines_rv()) &amp;&amp; nrow(seamlines_rv()) &gt; 0) {
+      leafletProxy(&quot;map&quot;, session = session) |&gt;
+        clearGroup(&quot;WFS Polygons&quot;) |&gt;
+        addPolygons(
+          data = seamlines_rv(),
+          group = &quot;WFS Polygons&quot;,
+          color = &quot;#00E5FF&quot;,
+          weight = 2,
+          fillOpacity = 0.15
+        )
+    }
+  })
+
+  # 4. Render summary table of seamline acquisition dates and sensors
+  output$seamline_table &lt;- renderTable({
+    sl &lt;- seamlines_rv()
+    req(sl)
+    df &lt;- sf::st_drop_geometry(sl)
+    cols &lt;- intersect(c(&quot;acq_time&quot;, &quot;sensor&quot;, &quot;gsd&quot;, &quot;catid&quot;), names(df))
+    head(df[, cols, drop = FALSE], 10)
+  })
+
+  # 5. Download GeoTIFF for the current map viewport
+  output$download_tif &lt;- downloadHandler(
+    filename = function() {
+      paste0(&quot;vantor_viewport_&quot;, Sys.Date(), &quot;.tif&quot;)
+    },
+    content = function(file) {
+      withProgress(message = &quot;Downloading GeoTIFF...&quot;, value = 0.4, {
+        get_maxar_wms_basemap(
+          bbox = viewport_bbox(),
+          output_file = file,
+          resolution = input$res,
+          product = input$product,
+          return_type = &quot;file&quot;
+        )
+      })
+    }
+  )
+}
+
+shinyApp(ui, server)
+</code></pre>
+<hr />
+<h2 id="4-using-drop-in-vantorr-shiny-modules">4. Using Drop-In <code>vantorr</code> Shiny Modules</h2>
+<p>To avoid writing boilerplate UI and server code in every application, <code>vantorr</code> provides two pre-built, namespace-safe Shiny modules:</p>
+<ul>
+<li><strong><code>vantor_auth_ui(id)</code> / <code>vantor_auth_server(id)</code></strong>: Manages API Key or OAuth2 login, displays connection status badges, queries account credit usage via <code>vantor_get_usage()</code>, and automatically refreshes OAuth2 tokens in the background via <code>shiny::invalidateLater()</code>.</li>
+<li><strong><code>vantor_explorer_ui(id)</code> / <code>vantor_explorer_server(id)</code></strong>: Provides the complete interactive <code>leaflet</code> map, product/protocol switcher, WFS seamline date inspector with HTML popups, live area ($\text{km}^2$) calculator, and multi-tile GeoTIFF downloader (<code>get_maxar_wms_tiles()</code> with progress bars).</li>
+</ul>
+<pre><code class="language-r">library(shiny)
+library(vantorr)
+
+ui &lt;- fluidPage(
+  titlePanel(&quot;Fieldwork AOI Selector&quot;),
+  vantor_auth_ui(&quot;vantor_login&quot;),
+  vantor_explorer_ui(&quot;vantor_map&quot;, height = &quot;550px&quot;),
+  verbatimTextOutput(&quot;selected_bbox&quot;)
+)
+
+server &lt;- function(input, output, session) {
+  # 1. Authentication module (auto-refreshes OAuth2 tokens)
+  auth_state &lt;- vantor_auth_server(&quot;vantor_login&quot;)
+
+  # 2. Explorer module (returns reactive bbox, seamlines, product, and resolution)
+  explorer &lt;- vantor_explorer_server(
+    &quot;vantor_map&quot;,
+    auth_reactive = auth_state
+  )
+
+  # 3. Use the reactive bounding box in your own downstream Shiny logic
+  output$selected_bbox &lt;- renderPrint({
+    explorer$bbox()
+  })
+}
+
+shinyApp(ui, server)
+</code></pre>
+<p>Or launch the built-in standalone demonstration app directly from an interactive R session with a single function call:</p>
+<pre><code class="language-r">if (interactive()) {
+  run_vantor_demo_app()
+}
+</code></pre>
+</div>
+<div class="include-after">
+</div>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js" defer></script>
+</body>
+</html>

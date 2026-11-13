@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Producing Fieldwork Resources for Survey Data Collection</title>
+<style type="text/css">
+/**
+ * Prism.s theme ported from highlight.js's xcode style
+ */
+pre code {
+  padding: 1em;
+}
+.token.comment {
+  color: #007400;
+}
+.token.punctuation {
+  color: #999;
+}
+.token.tag,
+.token.selector {
+  color: #aa0d91;
+}
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol {
+  color: #1c00cf;
+}
+.token.property,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin {
+  color: #c41a16;
+}
+.token.inserted {
+  background-color: #ccffd8;
+}
+.token.deleted {
+  background-color: #ffebe9;
+}
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #9a6e3a;
+}
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #836c28;
+}
+.token.function,
+.token.class-name {
+  color: #DD4A68;
+}
+.token.regex,
+.token.important,
+.token.variable {
+  color: #5c2699;
+}
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+</style>
+<style type="text/css">
+body {
+  font-family: sans-serif;
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+body, .footnotes, code { font-size: .9em; }
+li li { font-size: .95em; }
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+pre, img { max-width: 100%; }
+pre, pre:hover {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+pre code {
+  display: block;
+  overflow-x: auto;
+}
+code { font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace; }
+:not(pre) > code, code[class] { background-color: #F8F8F8; }
+code.language-undefined, pre > code:not([class]) {
+  background-color: inherit;
+  border: 1px solid #eee;
+}
+table {
+  margin: auto;
+  border-top: 1px solid #666;
+}
+table thead th { border-bottom: 1px solid #ddd; }
+th, td { padding: 5px; }
+thead, tfoot, tr:nth-child(even) { background: #eee; }
+blockquote {
+  color: #666;
+  margin: 0;
+  padding-left: 1em;
+  border-left: 0.5em solid #eee;
+}
+hr, .footnotes::before { border: 1px dashed #ddd; }
+.frontmatter { text-align: center; }
+#TOC .numbered li { list-style: none; }
+#TOC .numbered { padding-left: 0; }
+#TOC .numbered ul { padding-left: 1em; }
+table, .body h2 { border-bottom: 1px solid #666; }
+.body .appendix, .appendix ~ h2 { border-bottom-style: dashed; }
+.footnote-ref a::before { content: "["; }
+.footnote-ref a::after { content: "]"; }
+.footnotes::before {
+  content: "";
+  display: block;
+  max-width: 20em;
+}
+
+@media print {
+  body {
+    font-size: 12pt;
+    max-width: 100%;
+  }
+  tr, img { page-break-inside: avoid; }
+}
+@media only screen and (min-width: 992px) {
+  pre { white-space: pre; }
+}
+</style>
+</head>
+<body>
+<div class="include-before">
+</div>
+<div class="frontmatter">
+<div class="title"><h1>Producing Fieldwork Resources for Survey Data Collection</h1></div>
+<div class="author"><h2></h2></div>
+<div class="date"><h3></h3></div>
+</div>
+<div class="body">
+<h2 id="overview">Overview</h2>
+<p>Household surveys, agricultural censuses, and ground-truth campaigns rely on high-resolution satellite imagery to delineate Enumeration Areas (EAs), verify building footprints, and guide field enumerators to sampled structures.</p>
+<p><code>vantorr</code> provides a dedicated suite of fieldwork functions that turn Vantor / Maxar satellite basemaps and seamline metadata into ready-to-use survey resources:</p>
+<ol>
+<li><strong><code>vantor_survey_grid()</code></strong>: Partition an Area of Interest (AOI) into square or hexagonal survey index cells labeled <code>&quot;A1&quot;</code>, <code>&quot;A2&quot;</code>, <code>&quot;B1&quot;</code>, etc.</li>
+<li><strong><code>vantor_vintage_report()</code></strong>: Audit the acquisition dates (<code>acq_time</code>), resolution (<code>gsd</code>), and sensor quality of Vantor basemap strips across each Enumeration Area to flag outdated imagery before deploying field teams.</li>
+<li><strong><code>vantor_plus_code()</code> &amp; <code>vantor_export_capi()</code></strong>: Enrich sample points with offline-capable <strong>Open Location Codes (Google Plus Codes)</strong>, grid cell assignments (<code>cell_id</code>), and imagery acquisition dates (<code>imagery_acq_date</code>), and export platform-specific preload files:
+<ul>
+<li><strong>CSV (<code>.csv</code>) &amp; GeoJSON (<code>.geojson</code>)</strong> with <code>odk_geopoint</code> (<code>&quot;lat lon 0 0&quot;</code>) for <strong>ODK Collect</strong>, <strong>KoboToolbox</strong>, and <strong>ArcGIS Survey123</strong>.</li>
+<li><strong>Tab-delimited (<code>.tab</code>)</strong> assignment preload tables (<code>output_suso_tab</code>) with <code>&lt;gps_var&gt;__Latitude</code>, <code>&lt;gps_var&gt;__Longitude</code>, and <code>_target_area</code> for <strong>World Bank Survey Solutions</strong> (or direct programmatic assignment creation via the <a href="https://github.com/michael-cw/SurveySolutionsAPIv2"><strong><code>SurveySolutionsAPIv2</code></strong></a> R package).</li>
+</ul>
+</li>
+<li><strong><code>vantor_field_atlas()</code></strong>: Generate a multi-page printable <strong>PDF Field Atlas (Map Book)</strong> featuring an Overview Index sheet and zoomed-in Enumeration Area detail sheets with Vantor satellite imagery, scale bars, north arrows, and enumerator sign-off footers.</li>
+<li><strong><code>vantor_offline_package()</code> &amp; <code>vantor_write_tpk()</code></strong>: Bundle vector layers (<code>.gpkg</code>, zipped <code>.shp</code>), CAPI preload tables (<code>.csv</code> and Survey Solutions <code>.tab</code>), georeferenced Web Mercator basemaps (<code>.tif</code>), and multi-zoom Esri Tile Packages (<code>.tpk</code> / <code>.tpkx</code> and clean <code>_tpk.zip</code> upload archives) into a portable directory for offline tablet apps (<strong>World Bank Survey Solutions</strong>, <strong>QField</strong>, <strong>Mergin Maps</strong>, <strong>ArcGIS Field Maps</strong>). See <code>vignette(&quot;survey-solutions-workflow&quot;, package = &quot;vantorr&quot;)</code> for the dedicated Survey Solutions &amp; <code>SurveySolutionsAPIv2</code> guide.</li>
+</ol>
+<hr />
+<h2 id="1-generating-an-alphanumeric-survey-index-grid">1. Generating an Alphanumeric Survey Index Grid</h2>
+<p>Start by defining your survey Area of Interest (using any <code>sf</code>, <code>terra</code>, or <code>stars</code> object, or a WGS84 bounding box) and partitioning it into a metric enumeration grid with <code>vantor_survey_grid()</code>:</p>
+<pre><code class="language-r">library(vantorr)
+library(sf)
+#&gt; Warning: package 'sf' was built under R version 4.3.3
+#&gt; Linking to GEOS 3.13.0, GDAL 3.8.5, PROJ 9.5.1; sf_use_s2() is TRUE
+
+# Define a 1.5 km x 1.5 km survey Area of Interest in WGS84 (EPSG:4326)
+aoi &lt;- st_bbox(
+  c(xmin = -105.010, ymin = 39.730, xmax = -104.995, ymax = 39.742),
+  crs = st_crs(4326)
+)
+
+# Generate a 500 m square survey grid with alphanumeric labels (A1, A2, B1, ...)
+survey_grid &lt;- vantor_survey_grid(
+  aoi = aoi,
+  cell_size = 500,
+  shape = &quot;square&quot;,
+  verbose = FALSE
+)
+
+survey_grid[, c(&quot;cell_id&quot;, &quot;row_idx&quot;, &quot;col_idx&quot;, &quot;centroid_lon&quot;, &quot;centroid_lat&quot;, &quot;area_m2&quot;)]
+#&gt; Simple feature collection with 16 features and 6 fields
+#&gt; Geometry type: POLYGON
+#&gt; Dimension:     XY
+#&gt; Bounding box:  xmin: -105.01 ymin: 39.73 xmax: -104.992 ymax: 39.74382
+#&gt; Geodetic CRS:  WGS 84
+#&gt; First 10 features:
+#&gt;    cell_id row_idx col_idx centroid_lon centroid_lat area_m2
+#&gt; 1       A1       1       1    -105.0078     39.74209  250000
+#&gt; 2       A2       1       2    -105.0033     39.74209  250000
+#&gt; 3       A3       1       3    -104.9988     39.74209  250000
+#&gt; 4       A4       1       4    -104.9943     39.74209  250000
+#&gt; 5       B1       2       1    -105.0078     39.73864  250000
+#&gt; 6       B2       2       2    -105.0033     39.73864  250000
+#&gt; 7       B3       2       3    -104.9988     39.73864  250000
+#&gt; 8       B4       2       4    -104.9943     39.73864  250000
+#&gt; 9       C1       3       1    -105.0078     39.73518  250000
+#&gt; 10      C2       3       2    -105.0033     39.73518  250000
+#&gt;                          geometry
+#&gt; 1  POLYGON ((-105.01 39.74036,...
+#&gt; 2  POLYGON ((-105.0055 39.7403...
+#&gt; 3  POLYGON ((-105.001 39.74036...
+#&gt; 4  POLYGON ((-104.9965 39.7403...
+#&gt; 5  POLYGON ((-105.01 39.73691,...
+#&gt; 6  POLYGON ((-105.0055 39.7369...
+#&gt; 7  POLYGON ((-105.001 39.73691...
+#&gt; 8  POLYGON ((-104.9965 39.7369...
+#&gt; 9  POLYGON ((-105.01 39.73345,...
+#&gt; 10 POLYGON ((-105.0055 39.7334...
+</code></pre>
+<p>You can also generate hexagonal tessellations for spatial cluster sampling by setting <code>shape = &quot;hexagonal&quot;</code>:</p>
+<pre><code class="language-r">hex_grid &lt;- vantor_survey_grid(
+  aoi = aoi,
+  cell_size = 500,
+  shape = &quot;hexagonal&quot;,
+  verbose = FALSE
+)
+</code></pre>
+<hr />
+<h2 id="2-auditing-imagery-vintage-across-enumeration-areas">2. Auditing Imagery Vintage Across Enumeration Areas</h2>
+<p>When using satellite imagery to list households or sample structures, survey managers need to know whether the mosaic over each Enumeration Area is recent or several years old.</p>
+<p><code>vantor_vintage_report()</code> intersects your <code>survey_grid</code> (or Enumeration Area polygons) with Vantor’s OGC WFS Seamlines metadata (<code>vantor_get_seamlines()</code>) and calculates per-cell vintage metrics, flagging any cells where the imagery is older than <code>max_age_days</code> (default <code>730</code> days / 2 years):</p>
+<pre><code class="language-r"># In an online session with Vantor credentials, seamlines are fetched automatically:
+# vintage_grid &lt;- vantor_vintage_report(survey_grid, product = &quot;VIVID_STANDARD_30&quot;)
+
+# Offline demonstration using synthetic seamline polygons:
+bb_mid &lt;- -105.0025
+strip_west &lt;- st_bbox(c(xmin = -105.012, ymin = 39.728, xmax = bb_mid, ymax = 39.745), crs = st_crs(4326))
+strip_east &lt;- st_bbox(c(xmin = bb_mid, ymin = 39.728, xmax = -104.990, ymax = 39.745), crs = st_crs(4326))
+
+mock_seamlines &lt;- st_sf(
+  acq_time = c(&quot;2025-08-14T17:45:00Z&quot;, &quot;2021-03-20T18:10:00Z&quot;),
+  gsd = c(0.30, 0.31),
+  ona = c(10.2, 18.5),
+  sensor = c(&quot;WV03&quot;, &quot;WV02&quot;),
+  catid = c(&quot;10400100AA11&quot;, &quot;10300100BB22&quot;),
+  geometry = c(st_as_sfc(strip_west), st_as_sfc(strip_east))
+)
+
+vintage_grid &lt;- vantor_vintage_report(
+  aoi = survey_grid,
+  seamlines = mock_seamlines,
+  max_age_days = 730,
+  reference_date = as.Date(&quot;2026-10-15&quot;),
+  verbose = FALSE
+)
+
+st_drop_geometry(vintage_grid)[, c(
+  &quot;cell_id&quot;, &quot;n_strips&quot;, &quot;earliest_acq_date&quot;, &quot;latest_acq_date&quot;,
+  &quot;max_age_days&quot;, &quot;sensors&quot;, &quot;vintage_warning&quot;
+)]
+#&gt;    cell_id n_strips earliest_acq_date latest_acq_date max_age_days    sensors
+#&gt; 1       A1        1        2025-08-14      2025-08-14          427       WV03
+#&gt; 2       A2        2        2021-03-20      2025-08-14         2035 WV03, WV02
+#&gt; 3       A3        1        2021-03-20      2021-03-20         2035       WV02
+#&gt; 4       A4        1        2021-03-20      2021-03-20         2035       WV02
+#&gt; 5       B1        1        2025-08-14      2025-08-14          427       WV03
+#&gt; 6       B2        2        2021-03-20      2025-08-14         2035 WV03, WV02
+#&gt; 7       B3        1        2021-03-20      2021-03-20         2035       WV02
+#&gt; 8       B4        1        2021-03-20      2021-03-20         2035       WV02
+#&gt; 9       C1        1        2025-08-14      2025-08-14          427       WV03
+#&gt; 10      C2        2        2021-03-20      2025-08-14         2035 WV03, WV02
+#&gt; 11      C3        1        2021-03-20      2021-03-20         2035       WV02
+#&gt; 12      C4        1        2021-03-20      2021-03-20         2035       WV02
+#&gt; 13      D1        1        2025-08-14      2025-08-14          427       WV03
+#&gt; 14      D2        2        2021-03-20      2025-08-14         2035 WV03, WV02
+#&gt; 15      D3        1        2021-03-20      2021-03-20         2035       WV02
+#&gt; 16      D4        1        2021-03-20      2021-03-20         2035       WV02
+#&gt;    vintage_warning
+#&gt; 1            FALSE
+#&gt; 2             TRUE
+#&gt; 3             TRUE
+#&gt; 4             TRUE
+#&gt; 5            FALSE
+#&gt; 6             TRUE
+#&gt; 7             TRUE
+#&gt; 8             TRUE
+#&gt; 9            FALSE
+#&gt; 10            TRUE
+#&gt; 11            TRUE
+#&gt; 12            TRUE
+#&gt; 13           FALSE
+#&gt; 14            TRUE
+#&gt; 15            TRUE
+#&gt; 16            TRUE
+</code></pre>
+<hr />
+<h2 id="3-preparing-capi-sample-preloads-amp-offline-plus-codes">3. Preparing CAPI Sample Preloads &amp; Offline Plus Codes</h2>
+<p>Once household or cluster sample points are selected within your Enumeration Areas, <code>vantor_export_capi()</code> enriches them with coordinates, <strong>ODK / Kobo <code>geopoint</code> strings</strong>, <strong>offline Google Plus Codes</strong> (<code>vantor_plus_code()</code>), one-click Google Maps navigation links, grid cell assignments (<code>cell_id</code>), and imagery acquisition dates (<code>imagery_acq_date</code>).</p>
+<p>Because different CAPI platforms expect different preload schemas, <code>vantor_export_capi()</code> supports three simultaneous export targets:</p>
+<ul>
+<li><strong><code>output_csv</code> &amp; <code>output_geojson</code></strong>: Standard CSV and GeoJSON files containing <code>odk_geopoint</code> (<code>&quot;lat lon 0 0&quot;</code>) for <code>pulldata()</code> in <strong>ODK Collect</strong>, <strong>KoboToolbox</strong>, and <strong>ArcGIS Survey123</strong>.</li>
+<li><strong><code>output_suso_tab</code> (<code>suso_gps_var = &quot;hh_gps&quot;</code>)</strong>: A tab-delimited (<code>.tab</code>) assignment preload file formatted specifically for <strong>World Bank Survey Solutions Headquarters</strong> (<code>Survey Setup -&gt; Questionnaires -&gt; Upload Assignments</code>). It automatically splits coordinates into <code>&lt;suso_gps_var&gt;__Latitude</code> and <code>&lt;suso_gps_var&gt;__Longitude</code> so preloaded households appear as interactive pins on the Interviewer tablet’s <strong>Map Dashboard</strong>, sets <code>_target_area</code> from <code>cell_id</code>, and includes <code>plus_code</code> and <code>imagery_acq_date</code> for cover-page display.</li>
+</ul>
+<pre><code class="language-r"># Create sample household locations across the AOI
+sample_pts &lt;- st_as_sf(
+  data.frame(
+    hh_id = c(&quot;HH-101&quot;, &quot;HH-102&quot;, &quot;HH-103&quot;, &quot;HH-104&quot;),
+    head_name = c(&quot;Household A&quot;, &quot;Household B&quot;, &quot;Household C&quot;, &quot;Household D&quot;),
+    lon = c(-105.008, -105.004, -105.001, -104.997),
+    lat = c(39.739, 39.738, 39.734, 39.733)
+  ),
+  coords = c(&quot;lon&quot;, &quot;lat&quot;),
+  crs = 4326
+)
+
+# Enrich samples and export to ODK CSV, GeoJSON, and Survey Solutions .tab
+csv_file &lt;- tempfile(pattern = &quot;odk_preload_&quot;, fileext = &quot;.csv&quot;)
+geojson_file &lt;- tempfile(pattern = &quot;field_samples_&quot;, fileext = &quot;.geojson&quot;)
+suso_tab_file &lt;- tempfile(pattern = &quot;suso_preload_&quot;, fileext = &quot;.tab&quot;)
+
+capi_samples &lt;- vantor_export_capi(
+  samples = sample_pts,
+  id_col = &quot;hh_id&quot;,
+  grid = vintage_grid,
+  seamlines = mock_seamlines,
+  output_csv = csv_file,
+  output_geojson = geojson_file,
+  output_suso_tab = suso_tab_file,
+  suso_gps_var = &quot;hh_gps&quot;,
+  verbose = FALSE
+)
+
+st_drop_geometry(capi_samples)[, c(
+  &quot;sample_id&quot;, &quot;cell_id&quot;, &quot;plus_code&quot;,
+  &quot;hh_gps__Latitude&quot;, &quot;hh_gps__Longitude&quot;,
+  &quot;imagery_acq_date&quot;, &quot;imagery_sensor&quot;
+)]
+#&gt;   sample_id cell_id   plus_code hh_gps__Latitude hh_gps__Longitude
+#&gt; 1    HH-101      B1 85FPPXQR+JR           39.739          -105.008
+#&gt; 2    HH-102      B2 85FPPXQW+6C           39.738          -105.004
+#&gt; 3    HH-103      C3 85FPPXMX+JJ           39.734          -105.001
+#&gt; 4    HH-104      D3 85FQP2M3+66           39.733          -104.997
+#&gt;   imagery_acq_date imagery_sensor
+#&gt; 1       2025-08-14           WV03
+#&gt; 2       2025-08-14           WV03
+#&gt; 3       2021-03-20           WV02
+#&gt; 4       2021-03-20           WV02
+</code></pre>
+<p>Inspecting the generated Survey Solutions <code>.tab</code> file confirms that it contains the exact <code>&lt;gps_var&gt;__Latitude</code>, <code>&lt;gps_var&gt;__Longitude</code>, and <code>_target_area</code> columns required by Survey Solutions Headquarters:</p>
+<pre><code class="language-r">read.delim(suso_tab_file, check.names = FALSE)[, c(
+  &quot;sample_id&quot;, &quot;cell_id&quot;, &quot;plus_code&quot;,
+  &quot;hh_gps__Latitude&quot;, &quot;hh_gps__Longitude&quot;,
+  &quot;_target_area&quot;
+)]
+#&gt;   sample_id cell_id   plus_code hh_gps__Latitude hh_gps__Longitude _target_area
+#&gt; 1    HH-101      B1 85FPPXQR+JR           39.739          -105.008           B1
+#&gt; 2    HH-102      B2 85FPPXQW+6C           39.738          -105.004           B2
+#&gt; 3    HH-103      C3 85FPPXMX+JJ           39.734          -105.001           C3
+#&gt; 4    HH-104      D3 85FQP2M3+66           39.733          -104.997           D3
+</code></pre>
+<p>Enumerators can type the preloaded <code>plus_code</code> (e.g., <code>85FPPXQR+JR</code>) from the interview cover page directly into Google Maps or OSM on a mobile tablet to get turn-by-turn routing to the sampled structure <strong>completely offline</strong>, then switch to the offline Vantor <code>.tpk</code> basemap for the final 100 meters.</p>
+<hr />
+<h2 id="4-generating-a-multi-page-printable-field-atlas-pdf-map-book">4. Generating a Multi-Page Printable Field Atlas (PDF Map Book)</h2>
+<p>For paper back-up maps and field supervisor binders, <code>vantor_field_atlas()</code> generates a multi-page PDF Map Book containing:</p>
+<ul>
+<li><strong>Page 1 (Overview Index Sheet)</strong>: Shows the entire AOI, all grid cell boundaries and labels (<code>A1</code>, <code>A2</code>, …), and all sample locations.</li>
+<li><strong>Pages 2..N (Detail Enumeration Sheets)</strong>: One page per grid cell, zoomed in with a configurable buffer (<code>buffer_m = 50</code>), metric scale bar, north arrow, sample point labels, imagery vintage date, and a field notes sign-off line.</li>
+</ul>
+<pre><code class="language-r">atlas_pdf &lt;- tempfile(pattern = &quot;vantor_atlas_&quot;, fileext = &quot;.pdf&quot;)
+
+vantor_field_atlas(
+  grid = vintage_grid,
+  points = capi_samples,
+  output_file = atlas_pdf,
+  title = &quot;Denver Survey Enumeration Atlas&quot;,
+  buffer_m = 50,
+  fetch_basemap = FALSE, # Set fetch_basemap = TRUE when authenticated to embed Vantor RGB imagery
+  verbose = FALSE
+)
+
+file.exists(atlas_pdf)
+#&gt; [1] TRUE
+</code></pre>
+<p>When authenticated with Vantor (<code>vantor_has_auth()</code>), simply set <code>fetch_basemap = TRUE</code> (or pass a pre-downloaded <code>SpatRaster</code> via <code>raster = ...</code>) to render the 30 cm or 15 cm Vantor Vivid RGB satellite basemap underneath every page of the PDF atlas:</p>
+<pre><code class="language-r">vantor_field_atlas(
+  grid = vintage_grid,
+  points = capi_samples,
+  output_file = &quot;denver_field_atlas.pdf&quot;,
+  fetch_basemap = TRUE,
+  resolution = 0.3,
+  product = &quot;VIVID_STANDARD_30&quot;
+)
+</code></pre>
+<hr />
+<h2 id="5-packaging-offline-mobile-gis-amp-survey-solutions-bundles-vantor-offline-package-amp-vantor-write-tpk">5. Packaging Offline Mobile GIS &amp; Survey Solutions Bundles (<code>vantor_offline_package()</code> &amp; <code>vantor_write_tpk()</code>)</h2>
+<p>To deploy your survey grid, CAPI sample points, seamline vintage polygons, and georeferenced Vantor satellite imagery to mobile CAPI and GIS apps—including <strong>World Bank Survey Solutions</strong> (v24.09+ built on the <strong>ArcGIS Maps SDK for .NET v200.x</strong>), <strong>QField</strong>, <strong>Mergin Maps</strong>, and <strong>ArcGIS Field Maps</strong>—use <code>vantor_offline_package()</code> and <code>vantor_write_tpk()</code>:</p>
+<ul>
+<li><strong>Esri Tile Packages (<code>.tpk</code> / <code>.tpkx</code>) and Clean Upload Archives (<code>_tpk.zip</code>)</strong>: <code>vantor_write_tpk()</code> builds multi-zoom Web Mercator (<code>EPSG:3857</code> / Esri <code>WKID: 102100</code>) tile pyramids in pure R without requiring proprietary ArcGIS software or ArcGIS Online credits. Setting <code>zip_for_suso = TRUE</code> also creates a <code>&lt;stem&gt;_tpk.zip</code> archive stripped of macOS <code>__MACOSX/._*</code> resource forks for direct upload to <strong>Survey Solutions Headquarters</strong> (<code>Survey Setup -&gt; Maps</code>).</li>
+<li><strong>Zipped Esri Shapefiles (<code>_shapes.zip</code>)</strong>: Setting <code>create_shapefiles = TRUE</code> exports Enumeration Area grid cells and sample points as <code>EPSG:4326</code> Shapefiles (including a <code>label</code> attribute column for automatic feature labeling in Survey Solutions) zipped at the archive root.</li>
+<li><strong>Survey Solutions <code>.tab</code> Preload (<code>_suso_preload.tab</code>) &amp; ODK <code>.csv</code> (<code>_samples.csv</code>)</strong>: Automatically generated whenever <code>samples</code> is supplied.</li>
+<li><strong>Web Mercator GeoTIFFs (<code>.tif</code>)</strong>: Any included raster basemap is automatically reprojected to <code>EPSG:3857</code> so Survey Solutions’ Esri <code>RasterLayer</code> engine renders it accurately.</li>
+</ul>
+<pre><code class="language-r">bundle &lt;- vantor_offline_package(
+  grid = vintage_grid,
+  samples = capi_samples,
+  seamlines = mock_seamlines,
+  create_shapefiles = TRUE, # Zipped Shapefiles for Survey Solutions HQ
+  fetch_basemap = FALSE,    # Set TRUE to download and include the GeoTIFF basemap
+  package_name = &quot;denver_survey_ea&quot;,
+  verbose = FALSE
+)
+
+# Inspect the generated multi-layer GeoPackage, ODK CSV, Survey Solutions .tab, and Shapefile ZIP
+bundle$layers
+#&gt; [1] &quot;survey_grid&quot;       &quot;survey_samples&quot;    &quot;imagery_seamlines&quot;
+basename(c(bundle$gpkg_path, bundle$csv_path, bundle$suso_tab_path, bundle$shapefile_zip_path))
+#&gt; [1] &quot;denver_survey_ea.gpkg&quot;             &quot;denver_survey_ea_samples.csv&quot;     
+#&gt; [3] &quot;denver_survey_ea_suso_preload.tab&quot; &quot;denver_survey_ea_shapes.zip&quot;
+st_layers(bundle$gpkg_path)
+#&gt; Driver: GPKG 
+#&gt; Available layers:
+#&gt;          layer_name geometry_type features fields crs_name
+#&gt; 1       survey_grid       Polygon       16     15   WGS 84
+#&gt; 2    survey_samples         Point        4     11   WGS 84
+#&gt; 3 imagery_seamlines       Polygon        2      5   WGS 84
+</code></pre>
+<p>To generate a standalone multi-zoom <code>.tpk</code> (and clean <code>_tpk.zip</code> upload archive) directly from Vantor WMS imagery or an existing <code>terra::SpatRaster</code>:</p>
+<pre><code class="language-r"># Online: fetch zoom levels 15-17 directly from Vantor WMS into a .tpk + _tpk.zip
+vantor_write_tpk(
+  x = vintage_grid,
+  output_file = &quot;denver_ea_basemap.tpk&quot;,
+  zoom = 15:17,
+  product = &quot;VIVID_STANDARD_30&quot;,
+  zip_for_suso = TRUE
+)
+</code></pre>
+<p>For a step-by-step guide covering Survey Solutions Headquarters upload requirements, <code>WKID: 102100</code> coordinate conventions, <code>.tab</code> preloading, and automated server upload &amp; assignment creation using the <a href="https://github.com/michael-cw/SurveySolutionsAPIv2"><strong><code>SurveySolutionsAPIv2</code></strong></a> R package, see <code>vignette(&quot;survey-solutions-workflow&quot;, package = &quot;vantorr&quot;)</code>.</p>
+</div>
+<div class="include-after">
+</div>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js" defer></script>
+</body>
+</html>
